@@ -51,60 +51,58 @@ def evaluate(text):
 
     with torch.no_grad():
         logits = model(emb)
+
+        # --- Temperature scaling (soft calibration) ---
+        temperature = 1.5
+        logits = logits / temperature
+
         probs = torch.softmax(logits, dim=1)
 
-        confidence_tensor, pred = torch.max(probs, 1)
+        confidence, pred = torch.max(probs, 1)
 
         sorted_probs, _ = torch.sort(probs, descending=True)
-        margin_tensor = sorted_probs[0][0] - sorted_probs[0][1]
+        margin = sorted_probs[0][0] - sorted_probs[0][1]
 
-    predicted_class = label_map[pred.item()]
-    confidence = float(confidence_tensor)
-    margin = float(margin_tensor)
+    decision = label_map[pred.item()]
+    confidence = float(confidence)
+    margin = float(margin)
 
-    # ----------------------------
-    # Calibration Threshold Bands
-    # ----------------------------
+    # ==========================
+    # Smart Calibration Logic
+    # ==========================
 
-    HIGH_CONF = 0.70
-    MEDIUM_CONF = 0.50
+    HIGH_CONF = 0.65
+    MEDIUM_CONF = 0.45
+    SAFE_MARGIN = 0.12
+    LOW_MARGIN = 0.05
 
-    SAFE_MARGIN = 0.25
-    LOW_MARGIN = 0.10
-
-    final_decision = predicted_class
-
-    # ---- Zone 1: High Certainty ----
+    # Very high certainty → trust model
     if confidence >= HIGH_CONF and margin >= SAFE_MARGIN:
-        final_decision = predicted_class
+        final_decision = decision
 
-    # ---- Zone 2: Medium Certainty ----
-    elif MEDIUM_CONF <= confidence < HIGH_CONF:
-        if predicted_class == "respond":
-            final_decision = "respond"
-        else:
+    # Moderate certainty → allow respond but block risky outputs
+    elif confidence >= MEDIUM_CONF and margin >= LOW_MARGIN:
+        if decision in ["defer", "silent"]:
             final_decision = "ask_clarify"
+        else:
+            final_decision = decision
 
-    # ---- Zone 3: Low Certainty ----
-    elif confidence < MEDIUM_CONF or margin < LOW_MARGIN:
+    # Low certainty → clarify
+    else:
         final_decision = "ask_clarify"
 
-    # ----------------------------
-    # Risk Category Tagging
-    # ----------------------------
-
-    if final_decision == "defer":
-        category = "high_risk"
-    elif confidence < MEDIUM_CONF:
-        category = "low_confidence"
-    elif margin < SAFE_MARGIN:
-        category = "ambiguous"
-    elif final_decision == "silent":
-        category = "noise"
-    else:
+    # Risk tagging
+    if final_decision == "respond":
         category = "trusted"
+    elif final_decision == "ask_clarify":
+        category = "ambiguous"
+    elif final_decision == "defer":
+        category = "high_risk"
+    else:
+        category = "noise"
 
     return final_decision, confidence, margin, category
+
 
 
 
