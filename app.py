@@ -51,11 +51,6 @@ def evaluate(text):
 
     with torch.no_grad():
         logits = model(emb)
-
-        # --- Temperature scaling (soft calibration) ---
-        temperature = 1.5
-        logits = logits / temperature
-
         probs = torch.softmax(logits, dim=1)
 
         confidence, pred = torch.max(probs, 1)
@@ -67,28 +62,37 @@ def evaluate(text):
     confidence = float(confidence)
     margin = float(margin)
 
-    # ==========================
-    # Smart Calibration Logic
-    # ==========================
+    # ===== Calibration Logic =====
 
-        HIGH_CONF = 0.70
+    HIGH_CONF = 0.70
     MEDIUM_CONF = 0.50
     SAFE_MARGIN = 0.15
 
-    # Strong signal → trust model
     if confidence >= HIGH_CONF and margin >= SAFE_MARGIN:
         final_decision = decision
 
-    # Medium confidence but strong margin → allow respond
     elif confidence >= MEDIUM_CONF and margin >= SAFE_MARGIN:
         final_decision = "respond"
 
-    # If model predicts defer with low certainty → clarify instead
     elif decision == "defer" and confidence < HIGH_CONF:
         final_decision = "ask_clarify"
 
     else:
         final_decision = decision
+
+    # ===== Risk Category Mapping =====
+
+    if final_decision == "respond":
+        category = "trusted"
+    elif final_decision == "ask_clarify":
+        category = "ambiguous"
+    elif final_decision == "defer":
+        category = "high_risk"
+    else:
+        category = "noise"
+
+    return final_decision, confidence, margin, category
+
 
 
     # Risk tagging
