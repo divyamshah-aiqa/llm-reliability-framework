@@ -5,18 +5,21 @@ from sentence_transformers import SentenceTransformer
 
 # ===== Recreate Model Architecture =====
 
+import torch.nn as nn
+
 class SimpleModel(nn.Module):
     def __init__(self):
-        super(SimpleModel, self).__init__()
-        self.fc1 = nn.Linear(384, 128)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(128, 4)
+        super().__init__()
+        self.model = nn.Sequential(
+            nn.Linear(384, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 4)
+        )
 
     def forward(self, x):
-        x = self.fc1(x)
-        x = self.relu(x)
-        x = self.fc2(x)
-        return x
+        return self.model(x)
 
 # ===== Load Embedding Model =====
 
