@@ -1,3 +1,15 @@
+---
+title: LLM Reliability Evaluation Framework
+emoji: 🧠
+colorFrom: indigo
+colorTo: blue
+sdk: gradio
+sdk_version: 4.0.0
+app_file: app.py
+pinned: false
+---
+
+
 LLM Reliability Evaluation Framework
 
 A confidence-calibrated decision gating system that evaluates whether an AI should:
