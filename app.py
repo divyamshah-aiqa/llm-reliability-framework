@@ -71,25 +71,25 @@ def evaluate(text):
     # Smart Calibration Logic
     # ==========================
 
-    HIGH_CONF = 0.65
-    MEDIUM_CONF = 0.45
-    SAFE_MARGIN = 0.12
-    LOW_MARGIN = 0.05
+        HIGH_CONF = 0.70
+    MEDIUM_CONF = 0.50
+    SAFE_MARGIN = 0.15
 
-    # Very high certainty → trust model
+    # Strong signal → trust model
     if confidence >= HIGH_CONF and margin >= SAFE_MARGIN:
         final_decision = decision
 
-    # Moderate certainty → allow respond but block risky outputs
-    elif confidence >= MEDIUM_CONF and margin >= LOW_MARGIN:
-        if decision in ["defer", "silent"]:
-            final_decision = "ask_clarify"
-        else:
-            final_decision = decision
+    # Medium confidence but strong margin → allow respond
+    elif confidence >= MEDIUM_CONF and margin >= SAFE_MARGIN:
+        final_decision = "respond"
 
-    # Low certainty → clarify
-    else:
+    # If model predicts defer with low certainty → clarify instead
+    elif decision == "defer" and confidence < HIGH_CONF:
         final_decision = "ask_clarify"
+
+    else:
+        final_decision = decision
+
 
     # Risk tagging
     if final_decision == "respond":
