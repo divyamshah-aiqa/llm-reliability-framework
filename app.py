@@ -7,19 +7,22 @@ from sentence_transformers import SentenceTransformer
 
 import torch.nn as nn
 
+import torch.nn as nn
+
 class SimpleModel(nn.Module):
     def __init__(self):
         super().__init__()
         self.model = nn.Sequential(
-            nn.Linear(384, 128),
+            nn.Linear(384, 256),
             nn.ReLU(),
-            nn.Linear(128, 64),
+            nn.Linear(256, 128),
             nn.ReLU(),
-            nn.Linear(64, 4)
+            nn.Linear(128, 4)
         )
 
     def forward(self, x):
         return self.model(x)
+
 
 # ===== Load Embedding Model =====
 
