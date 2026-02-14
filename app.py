@@ -53,25 +53,59 @@ def evaluate(text):
         logits = model(emb)
         probs = torch.softmax(logits, dim=1)
 
-        confidence, pred = torch.max(probs, 1)
+        confidence_tensor, pred = torch.max(probs, 1)
 
         sorted_probs, _ = torch.sort(probs, descending=True)
-        margin = sorted_probs[0][0] - sorted_probs[0][1]
+        margin_tensor = sorted_probs[0][0] - sorted_probs[0][1]
 
-    decision = label_map[pred.item()]
-    confidence = float(confidence)
-    margin = float(margin)
+    predicted_class = label_map[pred.item()]
+    confidence = float(confidence_tensor)
+    margin = float(margin_tensor)
 
-    if decision == "respond":
-        category = "trusted"
-    elif decision == "ask_clarify":
-        category = "ambiguous"
-    elif decision == "defer":
+    # ----------------------------
+    # Calibration Threshold Bands
+    # ----------------------------
+
+    HIGH_CONF = 0.70
+    MEDIUM_CONF = 0.50
+
+    SAFE_MARGIN = 0.25
+    LOW_MARGIN = 0.10
+
+    final_decision = predicted_class
+
+    # ---- Zone 1: High Certainty ----
+    if confidence >= HIGH_CONF and margin >= SAFE_MARGIN:
+        final_decision = predicted_class
+
+    # ---- Zone 2: Medium Certainty ----
+    elif MEDIUM_CONF <= confidence < HIGH_CONF:
+        if predicted_class == "respond":
+            final_decision = "respond"
+        else:
+            final_decision = "ask_clarify"
+
+    # ---- Zone 3: Low Certainty ----
+    elif confidence < MEDIUM_CONF or margin < LOW_MARGIN:
+        final_decision = "ask_clarify"
+
+    # ----------------------------
+    # Risk Category Tagging
+    # ----------------------------
+
+    if final_decision == "defer":
         category = "high_risk"
-    else:
+    elif confidence < MEDIUM_CONF:
+        category = "low_confidence"
+    elif margin < SAFE_MARGIN:
+        category = "ambiguous"
+    elif final_decision == "silent":
         category = "noise"
+    else:
+        category = "trusted"
 
-    return decision, confidence, margin, category
+    return final_decision, confidence, margin, category
+
 
 
 demo = gr.Interface(
